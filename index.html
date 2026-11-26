@@ -498,7 +498,10 @@
 
   const links = [...document.querySelectorAll("nav a")];
   addEventListener("keydown", (e) => {
-    if (e.code === "Space") { e.preventDefault(); jump(); return; }
+    if (e.code === "Space") {
+      if (e.target.closest("button")) return;
+      e.preventDefault(); jump(); return;
+    }
     if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       const i = links.indexOf(document.activeElement);
       const next = e.key === "ArrowRight" ? (i + 1) % links.length : (i <= 0 ? links.length - 1 : i - 1);
