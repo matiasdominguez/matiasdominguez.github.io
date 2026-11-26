@@ -1,23 +1,528 @@
----
-layout: default
----
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Matias Dominguez</title>
+<meta name="description" content="Matias Dominguez. Engineering manager, player/coach, data platform dude.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1028;
+    --paper: #ffffff;
+    --gold: #ffd23f;
+    --red: #e4572e;
+    --mint: #29d3c2;
+    --pink: #ff3d6e;
+    --sky: #4fb7ff;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--sky);
+    color: var(--paper);
+    font-family: "Press Start 2P", ui-monospace, monospace;
+    font-size: 12px;
+    line-height: 1.9;
+    overflow: hidden;
+    -webkit-font-smoothing: none;
+    font-variant-ligatures: none;
+  }
+  canvas#scene {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+  }
+  .hud {
+    position: fixed; top: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between; gap: 12px;
+    padding: 14px 18px;
+    text-shadow: 2px 2px 0 var(--ink);
+    z-index: 2;
+  }
+  .hud b { color: var(--gold); font-weight: normal; }
+  .hud button {
+    font: inherit; color: inherit; background: none; border: 0; padding: 0;
+    cursor: pointer; text-shadow: inherit;
+  }
+  .hud button:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
+  main {
+    position: relative; z-index: 1;
+    height: 100%;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 64px 16px 0;
+    text-align: center;
+  }
+  h1 {
+    margin: 0;
+    font-size: clamp(22px, 6.2vw, 68px);
+    font-weight: normal;
+    line-height: 1.25;
+    letter-spacing: 0.02em;
+    color: var(--gold);
+    text-shadow:
+      0.06em 0.06em 0 var(--red),
+      0.12em 0.12em 0 var(--ink);
+  }
+  .role {
+    margin: 18px 0 0;
+    font-size: clamp(9px, 1.5vw, 15px);
+    text-shadow: 2px 2px 0 var(--ink);
+  }
+  /* The font draws letters on an 8-unit grid: caps are 7 units tall, start 1 unit above the baseline, and carry 1 empty unit on their right. */
+  .role span {
+    display: inline-block; width: 0.5em; height: 0.5em;
+    margin: 0 0.75em 0 0.625em; vertical-align: 0.3125em;
+    background: var(--mint); box-shadow: 2px 2px 0 var(--ink);
+  }
+  .box {
+    margin-top: 22px;
+    background: var(--ink);
+    border: 4px solid var(--paper);
+    box-shadow: 0 0 0 4px var(--ink), 8px 8px 0 4px rgba(26, 16, 40, 0.35);
+    padding: 16px 20px;
+    text-align: left;
+    max-width: min(640px, 100%);
+    font-size: clamp(8px, 1.25vw, 12px);
+  }
+  .box dl { margin: 0; display: grid; grid-template-columns: auto 1fr; column-gap: 18px; row-gap: 4px; }
+  .box dt { color: var(--gold); }
+  .box dd { margin: 0; }
+  .box em { font-style: normal; color: var(--pink); }
+  nav ul {
+    list-style: none; margin: 20px 0 0; padding: 0;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 26px;
+    font-size: clamp(9px, 1.4vw, 13px);
+  }
+  nav a {
+    color: var(--paper); text-decoration: none;
+    text-shadow: 2px 2px 0 var(--ink);
+    padding: 4px 2px 4px 22px; position: relative; display: inline-block;
+  }
+  nav a::before {
+    content: ""; position: absolute; left: 0; top: 50%;
+    width: 0.6em; height: 1em; margin-top: -0.5em;
+    background: var(--gold); opacity: 0;
+    clip-path: polygon(0 0, 33.4% 0, 33.4% 20%, 66.7% 20%, 66.7% 40%, 100% 40%, 100% 60%, 66.7% 60%, 66.7% 80%, 33.4% 80%, 33.4% 100%, 0 100%);
+  }
+  nav a:hover, nav a:focus-visible { color: var(--gold); outline: none; }
+  nav a:hover::before, nav a:focus-visible::before { opacity: 1; animation: blink 0.6s steps(1) infinite; }
+  .hint {
+    margin-top: 18px;
+    font-size: clamp(7px, 1.05vw, 10px);
+    text-shadow: 2px 2px 0 var(--ink);
+    animation: blink 1.1s steps(1) infinite;
+  }
+  footer {
+    position: fixed; bottom: 8px; left: 0; right: 0; z-index: 2;
+    text-align: center; font-size: 8px; color: var(--paper); text-shadow: 2px 2px 0 var(--ink);
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (max-width: 560px) {
+    .hud { font-size: 8px; padding: 10px; }
+    .wide { display: none; }
+    main { padding-top: 48px; }
+    .role { font-size: 8px; }
+    .box { padding: 12px 14px; margin-top: 16px; }
+    .box dl { column-gap: 12px; }
+    nav ul { margin-top: 14px; }
+    .hint { margin-top: 10px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hint, nav a::before { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-hidden="true"></canvas>
 
-<div class="home">
-
-  <h1 class="page-heading">Posts</h1>
-
-  <ul class="post-list">
-    {% for post in site.posts %}
-      <li>
-        <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
-
-        <h2>
-          <a class="post-link" href="{{ post.url | prepend: site.baseurl }}">{{ post.title }}</a>
-        </h2>
-      </li>
-    {% endfor %}
-  </ul>
-
-  <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | prepend: site.baseurl }}">via RSS</a></p>
-
+<div class="hud">
+  <span>1P <b id="score">000000</b></span>
+  <span>&#9834;&times;<b id="records">00</b></span>
+  <span class="wide">STAGE <b>DATA-1</b></span>
+  <button id="sound" type="button" aria-pressed="false">SOUND <b>OFF</b></button>
 </div>
+
+<main>
+  <h1>MATIAS<br>DOMINGUEZ</h1>
+  <p class="role">ENGINEERING MANAGER<span aria-hidden="true"></span>DATA PLATFORM DUDE</p>
+
+  <section class="box" aria-label="About">
+    <dl>
+      <dt>CLASS</dt><dd>player/coach</dd>
+      <dt>MAIN QUEST</dt><dd>building data @ <em>Tenjin</em></dd>
+      <dt>SIDE QUEST</dt><dd>helping fight fraud @ <em>GatekeeperX</em></dd>
+      <dt>CONDITION</dt><dd>incurable music nerd &#9834;</dd>
+      <dt>HOME BASE</dt><dd>Argentina</dd>
+    </dl>
+  </section>
+
+  <nav aria-label="Links">
+    <ul>
+      <li><a href="https://github.com/matiasdominguez">GITHUB</a></li>
+      <li><a href="https://www.linkedin.com/in/matiasnicolasdominguez/">LINKEDIN</a></li>
+      <li><a href="https://github.com/matiasdominguez/ch-gui">CH-GUI</a></li>
+    </ul>
+  </nav>
+
+  <p class="hint" id="hint">SPACE: JUMP &nbsp; &lt; &gt;: SELECT &nbsp; ENTER: GO</p>
+</main>
+
+<footer>&copy; 199X MATIAS DOMINGUEZ<span class="wide"> &middot; NO PIPELINES WERE HARMED</span></footer>
+
+<script>
+(() => {
+  const canvas = document.getElementById("scene");
+  const ctx = canvas.getContext("2d");
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const P = {
+    k: "#1a1028", s: "#f4b98a", h: "#3a2418", p: "#ff3d6e", t: "#29d3c2",
+    j: "#3454d1", w: "#ffffff", g: "#57c84d", d: "#2f8f3a", r: "#e4572e",
+    y: "#ffd23f", o: "#f79824", e: "#8a5a3c", m: "#6b432c", c: "#cfd6e6",
+  };
+
+  const HERO = [
+    [
+      "....hhhh....",
+      "...hhhhhh...",
+      "..phhhhhhp..",
+      "..pssssssp..",
+      "..psksskspp.",
+      "...ssssss...",
+      "....tttt....",
+      "..tttttttt..",
+      ".sttttttttts",
+      ".s.tttttt.s.",
+      "...jjjjjj...",
+      "...jj..jj...",
+      "..jj....jj..",
+      "..ww....ww..",
+    ],
+    [
+      "....hhhh....",
+      "...hhhhhh...",
+      "..phhhhhhp..",
+      "..pssssssp..",
+      "..psksskspp.",
+      "...ssssss...",
+      "....tttt....",
+      "..tttttttt..",
+      "..sttttttts.",
+      "...stttts...",
+      "...jjjjjj...",
+      "....jjjj....",
+      "....jjjj....",
+      "....wwww....",
+    ],
+  ];
+  const HERO_JUMP = [
+    "....hhhh....",
+    "s..hhhhhh..s",
+    "s.phhhhhhp.s",
+    "t.pssssssp.t",
+    ".tpsksksptt.",
+    "..tssssss...",
+    "...tttttt...",
+    "...tttttt...",
+    "...tttttt...",
+    "...tttttt...",
+    "..jjjjjjjj..",
+    ".jj......jj.",
+    ".ww......ww.",
+    "............",
+  ];
+  const RECORD = [
+    [
+      "..kkkk..",
+      ".kkckkk.",
+      "kkckkkkk",
+      "kkkrrkkk",
+      "kkkrrkkk",
+      "kkkkkkkk",
+      ".kkkkkk.",
+      "..kkkk..",
+    ],
+    [
+      "..kkkk..",
+      ".kkkkkk.",
+      "kkkkkkkk",
+      "kkkrrkkk",
+      "kkkrrkkk",
+      "kkkkkckk",
+      ".kkkckk.",
+      "..kkkk..",
+    ],
+  ];
+  const BUG = [
+    [
+      ".k......k.",
+      "..k....k..",
+      ".rrrrrrrr.",
+      "rwkrrrrwkr",
+      "rrrrrrrrrr",
+      "rrkkkkkkrr",
+      ".r.r..r.r.",
+      "k..k..k..k",
+    ],
+    [
+      "..k....k..",
+      "..k....k..",
+      ".rrrrrrrr.",
+      "rwkrrrrwkr",
+      "rrrrrrrrrr",
+      "rrkkkkkkrr",
+      ".r.r..r.r.",
+      ".k.k..k.k.",
+    ],
+  ];
+  const BUG_FLAT = [
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "..........",
+    "rrrrrrrrrr",
+    "kwkrrrrwkk",
+  ];
+
+  function sprite(map, x, y) {
+    x = Math.round(x); y = Math.round(y);
+    for (let r = 0; r < map.length; r++) {
+      const row = map[r];
+      for (let c = 0; c < row.length; c++) {
+        const ch = row[c];
+        if (ch === ".") continue;
+        ctx.fillStyle = P[ch];
+        ctx.fillRect(x + c, y + r, 1, 1);
+      }
+    }
+  }
+
+  let W = 0, H = 0, GROUND = 0, heroX = 0;
+  function resize() {
+    const scale = Math.max(2, Math.round(innerHeight / 180));
+    W = Math.ceil(innerWidth / scale);
+    H = Math.ceil(innerHeight / scale);
+    canvas.width = W; canvas.height = H;
+    GROUND = H - 34;
+    heroX = Math.max(18, Math.round(W * 0.16));
+    ctx.imageSmoothingEnabled = false;
+  }
+
+  const hero = { y: 0, vy: 0, onGround: true, hurt: 0 };
+  let records = [], bugs = [], sparks = [];
+  let scroll = 0, score = 0, count = 0, nextRecord = 1.2, nextBug = 4, clock = 0;
+  const scoreEl = document.getElementById("score");
+  const recordsEl = document.getElementById("records");
+
+  let audio = null, soundOn = false;
+  function beep(freq, dur, type) {
+    if (!soundOn) return;
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = type || "square"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.05, audio.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audio.currentTime + dur);
+    o.connect(g).connect(audio.destination);
+    o.start(); o.stop(audio.currentTime + dur);
+  }
+
+  function jump() {
+    if (!hero.onGround) return;
+    hero.vy = -205; hero.onGround = false;
+    beep(520, 0.12);
+  }
+
+  function addScore(n) {
+    score += n;
+    scoreEl.textContent = String(score).padStart(6, "0");
+  }
+
+  function disc(cx, cy, r, color) {
+    ctx.fillStyle = color;
+    for (let y = -r; y <= r; y++) {
+      const half = Math.floor(Math.sqrt(r * r - y * y));
+      ctx.fillRect(cx - half, cy + y, half * 2 + 1, 1);
+    }
+  }
+
+  function hill(x, base, w, h, color) {
+    ctx.fillStyle = color;
+    const steps = Math.floor(h / 3);
+    for (let i = 0; i < steps; i++) {
+      const t = i / steps;
+      const half = Math.round((w / 2) * Math.sqrt(1 - t * t));
+      ctx.fillRect(Math.round(x - half), base - (i + 1) * 3, half * 2, 3);
+    }
+  }
+
+  function cloud(x, y) {
+    x = Math.round(x);
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(x + 4, y, 14, 4);
+    ctx.fillRect(x, y + 4, 26, 5);
+    ctx.fillRect(x + 3, y + 9, 20, 2);
+    ctx.fillStyle = P.c;
+    ctx.fillRect(x + 3, y + 9, 20, 1);
+  }
+
+  function draw() {
+    ctx.fillStyle = "#4fb7ff"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#7fcdff"; ctx.fillRect(0, Math.round(GROUND * 0.62), W, GROUND);
+    ctx.fillStyle = "#b5e3ff"; ctx.fillRect(0, Math.round(GROUND * 0.84), W, GROUND);
+
+    const portrait = W < H * 0.8;
+    const sr = Math.max(8, Math.round(Math.min(H * 0.11, W * 0.09)));
+    const sx = Math.round(W * 0.89), sy = portrait ? sr + 10 : Math.round(GROUND * 0.3);
+    disc(sx, sy, sr, P.y);
+    disc(sx, sy, Math.round(sr * 0.72), P.o);
+    disc(sx, sy, Math.round(sr * 0.64), P.y);
+    disc(sx, sy, Math.round(sr * 0.34), P.r);
+    disc(sx, sy, 1, P.k);
+    const a = clock * 1.6;
+    ctx.fillStyle = "#fff6c9";
+    ctx.fillRect(Math.round(sx + Math.cos(a) * sr * 0.5), Math.round(sy + Math.sin(a) * sr * 0.5), 2, 2);
+
+    for (let i = 0; i < 6; i++) {
+      const span = W + 60;
+      const x = ((i * 97 - scroll * 0.12) % span + span) % span - 30;
+      cloud(x, 14 + ((i * 37) % Math.max(20, Math.round(GROUND * 0.4))));
+    }
+    for (let i = 0; i < 5; i++) {
+      const span = W + 200;
+      const x = ((i * 150 - scroll * 0.3) % span + span) % span - 100;
+      hill(x, GROUND, 120 + (i % 3) * 30, 34 + (i % 2) * 16, P.d);
+    }
+    for (let i = 0; i < 6; i++) {
+      const span = W + 120;
+      const x = ((i * 110 + 40 - scroll * 0.55) % span + span) % span - 60;
+      hill(x, GROUND, 70 + (i % 2) * 24, 20 + (i % 3) * 6, P.g);
+    }
+
+    ctx.fillStyle = P.g; ctx.fillRect(0, GROUND, W, 4);
+    ctx.fillStyle = P.d; ctx.fillRect(0, GROUND + 4, W, 2);
+    ctx.fillStyle = P.e; ctx.fillRect(0, GROUND + 6, W, H - GROUND - 6);
+    ctx.fillStyle = P.m;
+    const off = Math.floor(scroll) % 16;
+    for (let x = -off; x < W; x += 16) {
+      ctx.fillRect(x, GROUND + 6, 1, H - GROUND - 6);
+      ctx.fillRect(x + 4, GROUND + 12, 3, 2);
+      ctx.fillRect(x + 11, GROUND + 22, 2, 2);
+    }
+    ctx.fillStyle = P.d;
+    for (let x = -off; x < W; x += 8) ctx.fillRect(x + 2, GROUND - 1, 2, 1);
+
+    const spin = Math.floor(clock * 6) % 2;
+    for (const r of records) sprite(RECORD[spin], r.x, r.y);
+    for (const b of bugs) sprite(b.flat ? BUG_FLAT : BUG[Math.floor(clock * 8) % 2], b.x, GROUND - 8);
+    ctx.fillStyle = P.y;
+    for (const s of sparks) ctx.fillRect(Math.round(s.x), Math.round(s.y), 1, 1);
+
+    if (!(hero.hurt > 0 && Math.floor(clock * 16) % 2)) {
+      const frame = hero.onGround ? HERO[Math.floor(clock * 9) % 2] : HERO_JUMP;
+      sprite(frame, heroX, GROUND - 14 + hero.y);
+    }
+  }
+
+  function burst(x, y) {
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      sparks.push({ x, y, vx: Math.cos(a) * 40, vy: Math.sin(a) * 40, life: 0.35 });
+    }
+  }
+
+  function step(dt) {
+    clock += dt;
+    scroll += 62 * dt;
+
+    hero.vy += 560 * dt;
+    hero.y += hero.vy * dt;
+    if (hero.y >= 0) { hero.y = 0; hero.vy = 0; hero.onGround = true; }
+    if (hero.hurt > 0) hero.hurt -= dt;
+
+    nextRecord -= dt;
+    if (nextRecord <= 0) {
+      const high = Math.random() < 0.55;
+      records.push({ x: W + 4, y: GROUND - (high ? 44 : 20) });
+      nextRecord = 1.1 + Math.random() * 1.6;
+    }
+    nextBug -= dt;
+    if (nextBug <= 0) {
+      bugs.push({ x: W + 6, flat: 0 });
+      nextBug = 3.5 + Math.random() * 3.5;
+    }
+
+    const hx = heroX, hy = GROUND - 14 + hero.y;
+    for (const r of records) {
+      r.x -= 62 * dt;
+      if (r.x < hx + 11 && r.x + 8 > hx + 1 && r.y < hy + 14 && r.y + 8 > hy) {
+        r.gone = true; count++;
+        recordsEl.textContent = String(count).padStart(2, "0");
+        addScore(100); burst(r.x + 4, r.y + 4); beep(880, 0.08); setTimeout(() => beep(1320, 0.1), 70);
+      }
+    }
+    for (const b of bugs) {
+      b.x -= (b.flat ? 62 : 92) * dt;
+      if (b.flat) { b.flat -= dt; if (b.flat <= 0) b.gone = true; continue; }
+      if (b.x < hx + 10 && b.x + 10 > hx + 2 && hy + 14 > GROUND - 8) {
+        if (hero.vy > 0 && hy + 14 < GROUND - 1) {
+          b.flat = 0.5; hero.vy = -150; addScore(200); burst(b.x + 5, GROUND - 4); beep(200, 0.12, "sawtooth");
+        } else if (hero.hurt <= 0) {
+          hero.hurt = 1; beep(110, 0.25, "sawtooth");
+        }
+      }
+    }
+    for (const s of sparks) { s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt; }
+    records = records.filter((r) => !r.gone && r.x > -10);
+    bugs = bugs.filter((b) => !b.gone && b.x > -12);
+    sparks = sparks.filter((s) => s.life > 0);
+  }
+
+  let last = 0;
+  function frame(t) {
+    const dt = Math.min(0.05, (t - last) / 1000 || 0);
+    last = t;
+    step(dt); draw();
+    requestAnimationFrame(frame);
+  }
+
+  resize();
+  addEventListener("resize", () => { resize(); if (reduced) draw(); });
+  if (reduced) { draw(); } else { requestAnimationFrame(frame); }
+
+  const links = [...document.querySelectorAll("nav a")];
+  addEventListener("keydown", (e) => {
+    if (e.code === "Space") { e.preventDefault(); jump(); return; }
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+      const i = links.indexOf(document.activeElement);
+      const next = e.key === "ArrowRight" ? (i + 1) % links.length : (i <= 0 ? links.length - 1 : i - 1);
+      links[next].focus();
+      e.preventDefault();
+    }
+  });
+  canvas.addEventListener("pointerdown", jump);
+  document.querySelector("main").addEventListener("pointerdown", (e) => {
+    if (!e.target.closest("a")) jump();
+  });
+
+  const soundBtn = document.getElementById("sound");
+  soundBtn.addEventListener("click", () => {
+    soundOn = !soundOn;
+    soundBtn.setAttribute("aria-pressed", String(soundOn));
+    soundBtn.querySelector("b").textContent = soundOn ? "ON" : "OFF";
+    beep(660, 0.1);
+  });
+
+  if (matchMedia("(pointer: coarse)").matches) {
+    document.getElementById("hint").textContent = "TAP TO JUMP";
+  }
+})();
+</script>
+</body>
+</html>
